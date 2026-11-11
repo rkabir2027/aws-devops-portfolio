@@ -29,3 +29,5 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t aws-devops-portfolio:ci .
+      - name: Verify Docker image
+        run: docker images
