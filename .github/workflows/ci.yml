@@ -1,4 +1,4 @@
-name: AWS-Devops-Portfolio CI 
+name: AWS-Devops-Portfolio CI
 
 on:
   push:
@@ -22,8 +22,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: |
-           python -m pip install --upgrade pip 
-           pip install -r requirements.txt
+          python -m pip install --upgrade pip 
+          pip install -r requirements.txt
       - name: Run tests
         run: python -m pytest -v tests/
 
@@ -31,3 +31,35 @@ jobs:
         run: docker build -t aws-devops-portfolio:ci .
       - name: Verify Docker image
         run: docker images
+
+  push-to-ecr:
+    needs: test-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::898534748843:role/GitHubActions-ECR-Role
+          aws-region: eu-west-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: aws-devops-portfolio
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" .
+          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
